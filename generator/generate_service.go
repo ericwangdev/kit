@@ -1681,89 +1681,14 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 		},
 	)
 	pg.NewLine()
-	pg.Raw().If(
-		jen.Id("*zipkinURL").Op("!=").Lit(""),
-	).Block(
-		jen.Id("logger").Dot("Log").Call(
-			jen.Lit("tracer"),
-			jen.Lit("Zipkin"),
-			jen.Lit("URL"),
-			jen.Id("*zipkinURL"),
-		),
-		jen.Id("reporter").Op(":=").Qual(
-			"github.com/openzipkin/zipkin-go/reporter/http", "NewReporter",
-		).Call(jen.Id("*zipkinURL")),
-		jen.Defer().Id("reporter").Dot("Close").Call(),
-		jen.List(jen.Id("endpoint"), jen.Id("err")).Op(":=").Qual(
-			"github.com/openzipkin/zipkin-go", "NewEndpoint",
-		).Call(
-			jen.Lit(g.name),
-			jen.Lit("localhost:80"),
-		),
-		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("err"),
-				jen.Id("err"),
-			),
-			jen.Qual("os", "Exit").Call(jen.Lit(1)),
-		),
-		jen.Id("localEndpoint").Op(":=").Qual("github.com/openzipkin/zipkin-go", "WithLocalEndpoint").Call(jen.Id("endpoint")),
-		jen.List(jen.Id("nativeTracer"), jen.Id("err")).Op(":=").Qual(
-			"github.com/openzipkin/zipkin-go", "NewTracer",
-		).Call(jen.Id("reporter"), jen.Id("localEndpoint")),
-		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("err"),
-				jen.Id("err"),
-			),
-			jen.Qual("os", "Exit").Call(jen.Lit(1)),
-		),
-		jen.Id("tracer").Op("=").Qual(
-			"github.com/openzipkin-contrib/zipkin-go-opentracing", "Wrap",
-		).Call(
-			jen.Id("nativeTracer"),
-		),
-	).Else().If(jen.Id("*lightstepToken").Op("!=").Lit("")).Block(
-		jen.Id("logger").Dot("Log").Call(
-			jen.Lit("tracer"),
-			jen.Lit("LightStep"),
-		),
-		jen.Id("tracer").Op("=").Qual(
-			"github.com/lightstep/lightstep-tracer-go", "NewTracer",
-		).Call(jen.Qual(
-			"github.com/lightstep/lightstep-tracer-go", "Options",
-		).Values(
-			jen.Dict{
-				jen.Id("AccessToken"): jen.Id("*lightstepToken"),
-			},
-		),
-		),
-		jen.Defer().Qual(
-			"github.com/lightstep/lightstep-tracer-go", "Flush",
-		).Call(jen.Qual("context", "Background").Call(), jen.Id("tracer")),
-	).Else().If(jen.Id("*appdashAddr").Op("!=").Lit("")).Block(
-		jen.Id("logger").Dot("Log").Call(
-			jen.Lit("tracer"),
-			jen.Lit("Appdash"),
-			jen.Lit("addr"),
-			jen.Id("*appdashAddr"),
-		),
-		jen.Id("collector").Op(":=").Qual(
-			"sourcegraph.com/sourcegraph/appdash", "NewRemoteCollector",
-		).Call(jen.Id("*appdashAddr")),
-		jen.Id("tracer").Op("=").Qual(
-			"sourcegraph.com/sourcegraph/appdash/opentracing", "NewTracer",
-		).Call(jen.Id("collector")),
-		jen.Defer().Id("collector").Dot("Close").Call(),
-	).Else().Block(
-		jen.Id("logger").Dot("Log").Call(
-			jen.Lit("tracer"),
-			jen.Lit("none"),
-		),
-		jen.Id("tracer").Op("=").Qual(
-			"github.com/opentracing/opentracing-go", "GlobalTracer",
-		).Call(),
-	).Line().Line()
+
+	pg.Raw().Id("logger").Dot("Log").Call(
+		jen.Lit("tracer"),
+		jen.Lit("none"),
+	).Line()
+	pg.Raw().Id("tracer").Op("=").Qual(
+		"github.com/opentracing/opentracing-go", "GlobalTracer",
+	).Call().Line()
 
 	svcImport, err := utils.GetServiceImportPath(g.name)
 	if err != nil {
@@ -1792,81 +1717,42 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 	return pg, nil
 }
 func (g *generateCmd) generateVars() {
-	if g.generateFirstTime {
-		g.code.Raw().Var().Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer").Line()
-		g.code.Raw().Var().Id("logger").Qual("github.com/go-kit/kit/log", "Logger").Line()
-		g.code.appendMultilineComment(
-			[]string{
-				"Define our flags. Your service probably won't need to bind listeners for",
-				"all* supported transports, but we do it here for demonstration purposes.",
-			},
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("fs").Op("=").Qual("flag", "NewFlagSet").Call(
-			jen.Lit(g.name), jen.Qual("flag", "ExitOnError"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("debugAddr").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("debug-addr"),
-			jen.Lit(":8080"),
-			jen.Lit("Debug and metrics listen address"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("httpAddr").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("http-addr"),
-			jen.Lit(":8081"),
-			jen.Lit("HTTP listen address"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("grpcAddr").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("grpc-addr"),
-			jen.Lit(":8082"),
-			jen.Lit("gRPC listen address"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("thriftAddr").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("thrift-addr"),
-			jen.Lit(":8083"),
-			jen.Lit("Thrift listen address"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("thriftProtocol").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("thrift-protocol"),
-			jen.Lit("binary"),
-			jen.Lit("binary, compact, json, simplejson"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("thriftBuffer").Op("=").Id("fs").Dot("Int").Call(
-			jen.Lit("thrift-buffer"),
-			jen.Lit(0),
-			jen.Lit("0 for unbuffered"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("thriftFramed").Op("=").Id("fs").Dot("Bool").Call(
-			jen.Lit("thrift-framed"),
-			jen.Lit(false),
-			jen.Lit("true to enable framing"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("zipkinURL").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("zipkin-url"),
-			jen.Lit(""),
-			jen.Lit("Enable Zipkin tracing via a collector URL e.g. http://localhost:9411/api/v1/spans"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("lightstepToken").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("lightstep-token"),
-			jen.Lit(""),
-			jen.Lit("Enable LightStep tracing via a LightStep access token"),
-		)
-		g.code.NewLine()
-		g.code.Raw().Var().Id("appdashAddr").Op("=").Id("fs").Dot("String").Call(
-			jen.Lit("appdash-addr"),
-			jen.Lit(""),
-			jen.Lit("Enable Appdash tracing via an Appdash server host:port"),
-		)
-		g.code.NewLine()
+	if !g.generateFirstTime {
+		return
 	}
+
+	g.code.Raw().Var().Id("logger").Qual("github.com/go-kit/kit/log", "Logger").Line()
+	g.code.Raw().Var().Id("tracer").Qual("github.com/opentracing/opentracing-go", "Tracer").Line()
+
+	g.code.appendMultilineComment(
+		[]string{
+			"Define our flags. Your service probably won't need to bind listeners for",
+			"all* supported transports, but we do it here for demonstration purposes.",
+		},
+	)
+	g.code.NewLine()
+	g.code.Raw().Var().Id("fs").Op("=").Qual("flag", "NewFlagSet").Call(
+		jen.Lit(g.name), jen.Qual("flag", "ExitOnError"),
+	)
+	g.code.NewLine()
+	g.code.Raw().Var().Id("debugAddr").Op("=").Id("fs").Dot("String").Call(
+		jen.Lit("debug-addr"),
+		jen.Lit(":8080"),
+		jen.Lit("Debug and metrics listen address"),
+	)
+	g.code.NewLine()
+	g.code.Raw().Var().Id("httpAddr").Op("=").Id("fs").Dot("String").Call(
+		jen.Lit("http-addr"),
+		jen.Lit(":8081"),
+		jen.Lit("HTTP listen address"),
+	)
+	g.code.NewLine()
+	g.code.Raw().Var().Id("grpcAddr").Op("=").Id("fs").Dot("String").Call(
+		jen.Lit("grpc-addr"),
+		jen.Lit(":8082"),
+		jen.Lit("gRPC listen address"),
+	)
+	g.code.NewLine()
 }
 func (g *generateCmd) generateInitHTTP() (err error) {
 	for _, v := range g.file.Methods {
