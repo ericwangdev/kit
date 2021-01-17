@@ -13,10 +13,9 @@ import (
 func TestNewGenerateTransport(t *testing.T) {
 	setDefaults()
 	type args struct {
-		name       string
-		gorillaMux bool
-		transport  string
-		methods    []string
+		name      string
+		transport string
+		methods   []string
 	}
 	tests := []struct {
 		name string
@@ -26,10 +25,9 @@ func TestNewGenerateTransport(t *testing.T) {
 		{
 			name: "Test if generator is created properly",
 			args: args{
-				name:       "test",
-				gorillaMux: false,
-				transport:  "http",
-				methods:    []string{},
+				name:      "test",
+				transport: "http",
+				methods:   []string{},
 			},
 			want: &GenerateTransport{
 				BaseGenerator: func() BaseGenerator {
@@ -50,10 +48,9 @@ func TestNewGenerateTransport(t *testing.T) {
 		{
 			name: "Test if bad name format still works",
 			args: args{
-				name:       "t es_t",
-				gorillaMux: false,
-				transport:  "http",
-				methods:    []string{},
+				name:      "t es_t",
+				transport: "http",
+				methods:   []string{},
 			},
 			want: &GenerateTransport{
 				BaseGenerator: func() BaseGenerator {
@@ -74,7 +71,7 @@ func TestNewGenerateTransport(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewGenerateTransport(tt.args.name, tt.args.gorillaMux, tt.args.transport, "", "", tt.args.methods); !reflect.DeepEqual(got, tt.want) {
+			if got := NewGenerateTransport(tt.args.name, tt.args.transport, "", "", tt.args.methods); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewGenerateTransport() = %v, want %v", got, tt.want)
 			}
 		})
@@ -710,7 +707,6 @@ func TestGenerateTransport_removeUnwantedMethods(t *testing.T) {
 func Test_newGenerateHTTPTransport(t *testing.T) {
 	type args struct {
 		name             string
-		gorillaMux       bool
 		serviceInterface parser.Interface
 		methods          []string
 	}
@@ -723,7 +719,7 @@ func Test_newGenerateHTTPTransport(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newGenerateHTTPTransport(tt.args.name, tt.args.gorillaMux, tt.args.serviceInterface, tt.args.methods); !reflect.DeepEqual(got, tt.want) {
+			if got := newGenerateHTTPTransport(tt.args.name, tt.args.serviceInterface, tt.args.methods); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newGenerateHTTPTransport() = %v, want %v", got, tt.want)
 			}
 		})
@@ -772,7 +768,6 @@ func Test_generateHTTPTransport_Generate(t *testing.T) {
 func Test_newGenerateHTTPTransportBase(t *testing.T) {
 	type args struct {
 		name             string
-		gorillaMux       bool
 		serviceInterface parser.Interface
 		methods          []string
 		allMethods       []parser.Method
@@ -786,7 +781,7 @@ func Test_newGenerateHTTPTransportBase(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newGenerateHTTPTransportBase(tt.args.name, tt.args.gorillaMux, tt.args.serviceInterface, tt.args.methods, tt.args.allMethods); !reflect.DeepEqual(got, tt.want) {
+			if got := newGenerateHTTPTransportBase(tt.args.name, tt.args.serviceInterface, tt.args.methods, tt.args.allMethods); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newGenerateHTTPTransportBase() = %v, want %v", got, tt.want)
 			}
 		})

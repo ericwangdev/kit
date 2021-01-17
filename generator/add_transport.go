@@ -30,7 +30,6 @@ type GenerateTransport struct {
 	BaseGenerator
 	name             string
 	transport        string
-	gorillaMux       bool
 	interfaceName    string
 	destPath         string
 	pbPath           string
@@ -42,10 +41,9 @@ type GenerateTransport struct {
 }
 
 // NewGenerateTransport returns a transport generator.
-func NewGenerateTransport(name string, gorillaMux bool, transport, pbPath, pbImportPath string, methods []string) Gen {
+func NewGenerateTransport(name string, transport, pbPath, pbImportPath string, methods []string) Gen {
 	i := &GenerateTransport{
 		name:          name,
-		gorillaMux:    gorillaMux,
 		interfaceName: utils.ToCamelCase(name + "Service"),
 		destPath:      fmt.Sprintf(viper.GetString("gk_service_path_format"), utils.ToLowerSnakeCase(name)),
 		methods:       methods,
@@ -94,12 +92,12 @@ func (g *GenerateTransport) Generate() (err error) {
 	}
 	switch g.transport {
 	case "http":
-		tG := newGenerateHTTPTransport(g.name, g.gorillaMux, g.serviceInterface, g.methods)
+		tG := newGenerateHTTPTransport(g.name, g.serviceInterface, g.methods)
 		err = tG.Generate()
 		if err != nil {
 			return err
 		}
-		tbG := newGenerateHTTPTransportBase(g.name, g.gorillaMux, g.serviceInterface, g.methods, mth)
+		tbG := newGenerateHTTPTransportBase(g.name, g.serviceInterface, g.methods, mth)
 		err = tbG.Generate()
 		if err != nil {
 			return err
@@ -188,24 +186,23 @@ func (g *GenerateTransport) removeUnwantedMethods() {
 
 type generateHTTPTransport struct {
 	BaseGenerator
-	name                          string
-	methods                       []string
-	interfaceName                 string
-	destPath                      string
-	generateFirstTime, gorillaMux bool
-	file                          *parser.File
-	filePath                      string
-	serviceInterface              parser.Interface
+	name              string
+	methods           []string
+	interfaceName     string
+	destPath          string
+	generateFirstTime bool
+	file              *parser.File
+	filePath          string
+	serviceInterface  parser.Interface
 }
 
-func newGenerateHTTPTransport(name string, gorillaMux bool, serviceInterface parser.Interface, methods []string) Gen {
+func newGenerateHTTPTransport(name string, serviceInterface parser.Interface, methods []string) Gen {
 	t := &generateHTTPTransport{
 		name:             name,
 		methods:          methods,
 		interfaceName:    utils.ToCamelCase(name + "Service"),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
 		serviceInterface: serviceInterface,
-		gorillaMux:       gorillaMux,
 	}
 	t.filePath = path.Join(t.destPath, viper.GetString("gk_http_file_name"))
 	t.srcFile = jen.NewFilePath(t.destPath)
@@ -282,46 +279,30 @@ func (g *generateHTTPTransport) Generate() (err error) {
 				fmt.Sprintf("make%sHandler creates the handler logic", m.Name),
 			})
 			g.code.NewLine()
-			var st *jen.Statement
-			if g.gorillaMux {
-				st = jen.Id("m").Dot("Methods").Call(
-					jen.Lit("POST"),
-				).Dot("Path").Call(
-					jen.Lit("/" + strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1)),
-				).Dot("Handler").Call(
-					jen.Qual("github.com/gorilla/handlers", "CORS").Call(
-						jen.Qual("github.com/gorilla/handlers", "AllowedMethods").Call(
-							jen.Index().String().Values(jen.Lit("POST")),
-						),
-						jen.Qual("github.com/gorilla/handlers", "AllowedOrigins").Call(
-							jen.Index().String().Values(jen.Lit("*")),
-						),
-					).Call(
-						jen.Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
-							jen.Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
-							jen.Id(fmt.Sprintf("decode%sRequest", m.Name)),
-							jen.Id(fmt.Sprintf("encode%sResponse", m.Name)),
-							jen.Id("options..."),
-						),
+
+			st := jen.Id("m").Dot("Methods").Call(
+				jen.Lit("POST"),
+			).Dot("Path").Call(
+				jen.Lit("/" + strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1)),
+			).Dot("Handler").Call(
+				jen.Qual("github.com/gorilla/handlers", "CORS").Call(
+					jen.Qual("github.com/gorilla/handlers", "AllowedMethods").Call(
+						jen.Index().String().Values(jen.Lit("POST")),
 					),
-				)
-			} else {
-				st = jen.Id("m").Dot("Handle").Call(
-					jen.Lit("/"+strings.Replace(utils.ToLowerSnakeCase(m.Name), "_", "-", -1)),
+					jen.Qual("github.com/gorilla/handlers", "AllowedOrigins").Call(
+						jen.Index().String().Values(jen.Lit("*")),
+					),
+				).Call(
 					jen.Qual("github.com/go-kit/kit/transport/http", "NewServer").Call(
 						jen.Id(fmt.Sprintf("endpoints.%sEndpoint", m.Name)),
 						jen.Id(fmt.Sprintf("decode%sRequest", m.Name)),
 						jen.Id(fmt.Sprintf("encode%sResponse", m.Name)),
 						jen.Id("options..."),
 					),
-				)
-			}
-			var param *jen.Statement
-			if g.gorillaMux {
-				param = jen.Id("m").Id("*").Qual("github.com/gorilla/mux", "Router")
-			} else {
-				param = jen.Id("m").Id("*").Qual("net/http", "ServeMux")
-			}
+				),
+			)
+
+			param := jen.Id("m").Id("*").Qual("github.com/gorilla/mux", "Router")
 			g.code.appendFunction(
 				fmt.Sprintf("make%sHandler", m.Name),
 				nil,
@@ -338,7 +319,6 @@ func (g *generateHTTPTransport) Generate() (err error) {
 				st,
 			)
 			g.code.NewLine()
-
 		}
 
 		if !decoderFound {
@@ -533,15 +513,13 @@ type generateHTTPTransportBase struct {
 	filePath         string
 	file             *parser.File
 	httpFilePath     string
-	gorillaMux       bool
 	serviceInterface parser.Interface
 }
 
-func newGenerateHTTPTransportBase(name string, gorillaMux bool, serviceInterface parser.Interface, methods []string, allMethods []parser.Method) Gen {
+func newGenerateHTTPTransportBase(name string, serviceInterface parser.Interface, methods []string, allMethods []parser.Method) Gen {
 	t := &generateHTTPTransportBase{
 		name:             name,
 		methods:          methods,
-		gorillaMux:       gorillaMux,
 		allMethods:       allMethods,
 		interfaceName:    utils.ToCamelCase(name + "Service"),
 		destPath:         fmt.Sprintf(viper.GetString("gk_http_path_format"), utils.ToLowerSnakeCase(name)),
@@ -612,13 +590,8 @@ func (g *generateHTTPTransportBase) Generate() (err error) {
 		}
 	}
 	var body []jen.Code
-	if g.gorillaMux {
-		body = append([]jen.Code{
-			jen.Id("m").Op(":=").Qual("github.com/gorilla/mux", "NewRouter").Call()}, handles...)
-	} else {
-		body = append([]jen.Code{
-			jen.Id("m").Op(":=").Qual("net/http", "NewServeMux").Call()}, handles...)
-	}
+	body = append([]jen.Code{
+		jen.Id("m").Op(":=").Qual("github.com/gorilla/mux", "NewRouter").Call()}, handles...)
 	body = append(body, jen.Return(jen.Id("m")))
 	g.code.appendFunction(
 		"NewHTTPHandler",

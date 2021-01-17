@@ -54,7 +54,6 @@ var initserviceCmd = &cobra.Command{
 			pbPath,
 			pbImportPath,
 			smw,
-			viper.GetBool("g_s_gorilla"),
 			emw,
 			methods,
 		)
