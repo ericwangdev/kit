@@ -1,19 +1,15 @@
 package generator
 
 import (
-	"fmt"
-	"path"
-	"strings"
-
 	"bytes"
-
-	"os/exec"
-
-	"os"
-
-	"runtime"
-
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"runtime"
+	"strings"
+	"text/scanner"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/emicklei/proto"
@@ -680,6 +676,19 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 			&proto.Package{
 				Name: "pb",
 			},
+			&proto.Option{
+				Position: scanner.Position{},
+				Comment:  nil,
+				Name:     "go_package",
+				Constant: proto.Literal{
+					IsString: true,
+					Source:   "./",
+				},
+				IsEmbedded:          false,
+				AggregatedConstants: nil,
+				InlineComment:       nil,
+				Parent:              nil,
+			},
 			svc,
 		)
 	} else {
@@ -702,7 +711,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 		g.pbFilePath = path.Join(viper.GetString("gk_folder"), g.pbFilePath)
 	}
 	if !viper.GetBool("gk_testing") {
-		cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:.")
+		cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:"+path.Dir(g.pbFilePath))
 		cmd.Stdout = os.Stdout
 		err = cmd.Run()
 		if err != nil {
@@ -795,7 +804,7 @@ func (g *generateGRPCTransportProto) generateRequestResponse() {
 				if r.Name == v.Name+"Request" {
 					foundRequest = true
 				}
-				if r.Name == v.Name+"Reply" {
+				if r.Name == v.Name+"Response" {
 					foundReply = true
 				}
 			}
@@ -807,7 +816,7 @@ func (g *generateGRPCTransportProto) generateRequestResponse() {
 		}
 		if !foundReply {
 			g.protoSrc.Elements = append(g.protoSrc.Elements, &proto.Message{
-				Name: v.Name + "Reply",
+				Name: v.Name + "Response",
 			})
 		}
 	}
@@ -828,7 +837,7 @@ func (g *generateGRPCTransportProto) getServiceRPC(svc *proto.Service) {
 		svc.Elements = append(svc.Elements,
 			&proto.RPC{
 				Name:        v.Name,
-				ReturnsType: v.Name + "Reply",
+				ReturnsType: v.Name + "Response",
 				RequestType: v.Name + "Request",
 			},
 		)
@@ -983,6 +992,7 @@ func (g *generateGRPCTransport) Generate() (err error) {
 	if err != nil {
 		return err
 	}
+	fmt.Println("____________" + g.filePath)
 	if b, err := g.fs.Exists(g.filePath); err != nil {
 		return err
 	} else if !b {
@@ -1114,7 +1124,7 @@ func (g *generateGRPCTransport) Generate() (err error) {
 					jen.Id("req").Id("*").Qual(pbImport, n+"Request"),
 				},
 				[]jen.Code{
-					jen.Id("*").Qual(pbImport, n+"Reply"),
+					jen.Id("*").Qual(pbImport, n+"Response"),
 					jen.Error(),
 				},
 				"",
@@ -1131,7 +1141,7 @@ func (g *generateGRPCTransport) Generate() (err error) {
 				),
 				jen.Return(
 					jen.Id("rep").Dot("").Call(
-						jen.Id("*").Qual(pbImport, n+"Reply"),
+						jen.Id("*").Qual(pbImport, n+"Response"),
 					),
 					jen.Nil(),
 				),

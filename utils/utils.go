@@ -14,6 +14,19 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+const (
+	jsonTagKey = "json"
+)
+
+var (
+	acronymToJsonTagVal = map[string]string{
+		"ssn": "ssn",
+		"dob": "dob",
+		"cvc": "cvc",
+		"apr": "apr",
+	}
+)
+
 // ToLowerFirstCamelCase returns the given string in camelcase formatted string
 // but with the first letter being lowercase.
 func ToLowerFirstCamelCase(s string) string {
@@ -24,6 +37,16 @@ func ToLowerFirstCamelCase(s string) string {
 		return strings.ToLower(string(s[0]))
 	}
 	return strings.ToLower(string(s[0])) + godash.ToCamelCase(s)[1:]
+}
+
+// JsonTag converts a string (usually a field name), e.g. ConsumerUUID, to json tag k v
+// Respects special rules from acronymToJsonTagVal for acronyms such as SSN
+func JsonTag(s string) (k, v string) {
+	if tagVal, ok := acronymToJsonTagVal[strings.ToLower(s)]; ok {
+		return jsonTagKey, tagVal
+	}
+
+	return jsonTagKey, ToLowerFirstCamelCase(s)
 }
 
 // ToUpperFirst returns the given string with the first letter being uppercase.
