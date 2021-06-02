@@ -16,6 +16,7 @@ require (
 	github.com/spf13/afero v1.2.2
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.2
+	github.com/stretchr/testify v1.7.0 // indirect
 	golang.org/x/tools v0.0.0-20190401163957-4fc9f0bfa59a
 	gopkg.in/yaml.v2 v2.2.2
 )
