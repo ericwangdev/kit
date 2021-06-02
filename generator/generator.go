@@ -87,7 +87,7 @@ func (b *BaseGenerator) GenerateNameBySample(sample string, exclude []parser.Nam
 		if v.Name == name {
 			sn++
 			if sn > len(sample) {
-				sample = string(len(sample) - sn)
+				sample = fmt.Sprint(len(sample) - sn)
 			}
 			name = utils.ToLowerFirstCamelCase(sample)[:sn]
 		}

@@ -90,7 +90,10 @@ func NewGenerateDTOFromProto(serviceName string, targetPBStructName string) Gen 
 
 func (g *GenerateDTOFromProtoGo) Generate() (err error) {
 	// create dto directory if not exist
-	_ = g.CreateFolderStructure(g.dtoPackagePath)
+	if err = g.CreateFolderStructure(g.dtoPackagePath); err != nil {
+		logrus.Errorf("failed to create dto directory: %s", err)
+		return err
+	}
 
 	// ensure pb.go file exists
 	if b, err := g.fs.Exists(g.protoGoFileFullPath); err != nil {
@@ -182,7 +185,6 @@ func (g *GenerateDTOFromProtoGo) genDTORecursive(currentPBStruct parser.Struct, 
 		fieldType, isSlice, isMap, mapKeyType := parseFieldType(field.Type)
 		logrus.Debug("fieldType: ", fieldType, " isSlice: ", isSlice, " isMap: ", isMap, " mapKeyType: ", mapKeyType)
 
-		// if fieldType, e.g. Address, exists in pb struct manifest, then it's a struct and we need to generate it
 		structState, ok := pbStructManifest[fieldType]
 		if !ok {
 			// fieldType is not a struct, but can be a map / slice of primitive types, e.g. map[string]string, []string
@@ -194,6 +196,7 @@ func (g *GenerateDTOFromProtoGo) genDTORecursive(currentPBStruct parser.Struct, 
 				MapKeyType:   mapKeyType,
 			}
 		} else {
+			// fieldType is a struct, generate it first then backtrack to current
 			fieldManifest[field.Name] = fieldState{
 				TypeName:     fieldType,
 				IsStructType: true,
@@ -202,7 +205,6 @@ func (g *GenerateDTOFromProtoGo) genDTORecursive(currentPBStruct parser.Struct, 
 				MapKeyType:   mapKeyType,
 			}
 
-			// fieldType is a struct, generate it first then backtrack to current
 			if !structState.Visited {
 				logrus.Debug("recursively gen struct field: ", structState.Struct)
 				g.genDTORecursive(structState.Struct, pbStructManifest)
@@ -368,11 +370,10 @@ func fieldIsASlice(typeName string) bool {
 	return strings.Contains(typeName, `[]`)
 }
 
-// todo eric.wang, this function assumes typeName can only be struct, plain slice or plan map, nested types such as slice of maps or map of slices are not supported yet and will cause weird output
+// todo eric.wang, this function assumes typeName can only be struct, plain slice or plain map, nested types such as slice of maps or map of slices are not supported yet and will cause weird output
 func parseFieldType(typeName string) (nameNoStar string, isSlice bool, isMap bool, mapKeyType string) {
 	if fieldIsASlice(typeName) {
 		isSlice = true
-		nameNoStar = strings.TrimPrefix(strings.TrimLeft(typeName, `]`), `*`)
 		parts := strings.Split(typeName, `]`)
 		nameNoStar = strings.TrimPrefix(parts[1], `*`)
 	} else if fieldIsAMap(typeName) {
