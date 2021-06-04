@@ -27,8 +27,7 @@ var genDTOCommand = &cobra.Command{
 		logrus.Warn(
 			`current limitations: 
 	1. a pb.go file need to be created prior to running this command;
-	2. command does NOT support in-place update and will fail if <serviceName>/pkg/<serviceName>/dto/z_<serviceName>_dto.go already exists;
-	3. for collection types, only plain map and slice are supported, nested collections such as map[string][]string or []map[string]string are not supported.`)
+	2. for collection types, only plain map and slice are supported, nested collections such as map[string][]string or []map[string]string are not supported.`)
 
 		if targetPBStructName != "" {
 			logrus.Info("targeting specific struct in pb.go: ", targetPBStructName)
