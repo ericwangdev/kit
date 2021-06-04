@@ -48,28 +48,6 @@ func TestGenerateDTO(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "generator throws error when dto file already exists",
-			fields: fields{
-				BaseGenerator: func() BaseGenerator {
-					b := BaseGenerator{}
-					b.srcFile = jen.NewFilePath("")
-					b.InitPg()
-					f := fs.NewDefaultFs("")
-					f.MkdirAll("test/pkg/grpc/pb/z_test.pb.go")
-					f.WriteFile("test/pkg/grpc/pb/z_test.pb.go", `random content`, true)
-					f.MkdirAll("test/pkg/test/dto")
-					f.WriteFile("test/pkg/test/dto/z_test_dto.go", ``, true)
-					b.fs = f
-					return b
-				}(),
-				name:                "test",
-				protoGoFileFullPath: "test/pkg/grpc/pb/z_test.pb.go",
-				dtoPackagePath:      "test/pkg/test/dto",
-				dtoFileFullPath:     "test/pkg/test/dto/z_test_dto.go",
-			},
-			wantErr: true,
-		},
-		{
 			name: "generator throws error when pb.go file is invalid",
 			fields: fields{
 				BaseGenerator: func() BaseGenerator {

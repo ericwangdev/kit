@@ -102,13 +102,13 @@ func (g *GenerateDTOFromProtoGo) Generate() (err error) {
 		return fmt.Errorf(" pb.go file does not exist at: %s, need pb.go file to auto gen dto", g.protoGoFileFullPath)
 	}
 
-	// ensure no existing auto generated dto
-	// todo eric.wang support in-place update
-	if b, err := g.fs.Exists(g.dtoFileFullPath); err != nil {
-		return fmt.Errorf("err checking exsiting dto file path: %s, err: %v", g.dtoFileFullPath, err)
-	} else if b {
-		return fmt.Errorf("dto file already exists at: %s, please rename / delete it before re-gen", g.dtoFileFullPath)
-	}
+	//// ensure no existing auto generated dto
+	//// todo eric.wang support in-place update
+	//if b, err := g.fs.Exists(g.dtoFileFullPath); err != nil {
+	//	return fmt.Errorf("err checking exsiting dto file path: %s, err: %v", g.dtoFileFullPath, err)
+	//} else if b {
+	//	return fmt.Errorf("dto file already exists at: %s, please rename / delete it before re-gen", g.dtoFileFullPath)
+	//}
 
 	// parse pb.go file
 	pbGoSrc, err := g.fs.ReadFile(g.protoGoFileFullPath)
